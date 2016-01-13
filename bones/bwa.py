@@ -4,7 +4,7 @@ import subprocess
 import multiprocessing
 
 from . utils import *
-from . process import Process
+from . process import *
 
 __all__ = ["Index", "Align"]
 
@@ -49,7 +49,7 @@ class Align(Process):
     Command = "bwa"
     Arguments = [
         ProcessArgument(name="threads", argument="-t", type=int, default=1, help="Number of threads"),
-        ProcessArgument(name="min_seed_len", argument="-k", type=int, default=19, help="Minimum seed length")
+        ProcessArgument(name="min_seed_len", argument="-k", type=int, default=19, help="Minimum seed length"),
         ProcessArgument(name="bandwidth", argument="-w", type=int, default=100, help="Gaps longer than bandwidth will not be found"),
         ProcessArgument(name="zdropoff", argument="-d", type=int, default=100, help="Off-diagonal X-dropoff"),
         ProcessArgument(name="seed_split_ratio", argument="-r", type=float, default=1.5, help="Re-seeding trigger ratio"),
@@ -69,18 +69,28 @@ class Align(Process):
         ProcessArgument(name="hard_clipping", argument="-H", type=bool, default=False, help="Use hard clipping in SAM file"),
         ProcessArgument(name="mark_short_splits", argument="-M", type=bool, default=False, help="Mark shorter split hits as secondary"),
         ProcessArgument(name="verbose", argument="-v", type=int, default=3, help="Control the verbose level of the output."),
+        ProcessArgument(name="index", position=0, type=str, required=True, help="Base index of reference"),
+        ProcessArgument(name="reads", position=1, type=str, required=True, help="Path to reads file"),
+        ProcessArgument(name="mates", position=2, type=str, help="Path to mate reads file"),
     ]
 
     def __init__(self, index, threads=-1):
         self.index = index
         self.threads = threads if threads >= 0 else multiprocessing.cpu_count()
 
-    def align(self, reads1, reads2=None, output=None, args=None):
+    def cli_command(self, **kw):
+        return [self.command_path, "mem"]
+
+    def cli_arguments(self, **kw):
+        cli = super(Align, self).cli_arguments(**kw)
+        reads = [reads1] if reads2 == None else [reads1, reads2]
+        cli = cli + [self.index.prefix] + reads
+
+    def align(self, reads1, reads2=None, output=None):
         args = args if args != None else dict()
         if self.threads and "-t" not in args:
             args["-t"] = self.threads
         args = list(map(str, reduce(operator.add, args.items(), tuple())))
-        reads = [reads1] if reads2 == None else [reads1, reads2]
         cmd = ["bwa", "mem"] + args + [self.index.prefix] + reads
         if output == None:
             output = common_filename(*reads)

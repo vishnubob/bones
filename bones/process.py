@@ -1,11 +1,12 @@
 import os
 import operator
 import subprocess
+from . utils import which
 
-__all__ = ["Process"]
+__all__ = ["Process", "ProcessArgument"]
 
 class ProcessArgument(object):
-    def __init__(self, name=None, argument=None, type=None, default=None, required=False, help=None):
+    def __init__(self, name=None, argument=None, type=None, default=None, required=False, position=None, help=None):
         self.name = name
         self.argument = argument
         self.type = type
@@ -13,20 +14,20 @@ class ProcessArgument(object):
         self.required = required
         self.help = help
 
-class ProcessMetaclass(type):
+class ProcessMeta(type):
     def __new__(cls, name, parents, dct):
         argmap = dct.get("_argmap", {})
         for parg in dct["Arguments"]:
             argmap[parg.name] = parg
         dct["_argmap"] = argmap
-        return super(InterfaceMeta, cls).__new__(cls, name, parents, dct)
+        return super(ProcessMeta, cls).__new__(cls, name, parents, dct)
 
 class Process(object):
     Command = "__command__"
     ProcessOptions = {}
     Arguments = []
     ReturnCode = 0
-    __metaclass__ = ProcessMetaclass
+    __metaclass__ = ProcessMeta
 
     def __init__(self, command_path=None, **args):
         command_path = command_path if command_path != None else self.Command
@@ -34,8 +35,8 @@ class Process(object):
         self.command_path = command_path
         # make local copies
         self._args = {}
-        for (key, val) in args:
-            self.set_argument(key, val)
+        for (key, val) in args.iteritems():
+            setattr(self, key, val)
 
     def get_argument(self, name):
         if name not in self._argmap:
@@ -62,29 +63,49 @@ class Process(object):
             return self.set_argument(key, val)
         super(Process, self).__setattr__(key, val)
 
-    def build_command_line(self, **kw):
+    def cli_arguments(self, **kw):
         _args = self._args.copy()
         _args.update(kw)
         #
-        cli = [self.command_path]
-        for (name, parg) in self._argmap.items():
-            if name in _args:
-                if parg.type == "bool" and _args[name]:
+        cli = []
+        for parg in self.Arguments:
+            if parg.name in _args:
+                if parg.argument == None:
+                    cli.append("%s" % _args[parg.name])
+                elif parg.type == bool and _args[parg.name]:
                     cli.append(parg.argument)
                 else:
                     cli.append(parg.argument)
-                    cli.append("%r" % _args[name])
+                    cli.append("%s" % _args[parg.name])
             elif parg.required:
-                if parg.type == "bool" and parg.default:
+                if parg.type == bool and parg.default:
                     cli.append(parg.argument)
+                elif parg.argument == None:
+                    cli.append("%s" % parg.default)
                 else:
                     cli.append(parg.argument)
-                    cli.append("%r" % parg.default)
+                    cli.append("%s" % parg.default)
         return cli
 
+    def cli_command(self, **kw):
+        return [self.command_path]
+
+    def cli(self, **kw):
+        return self.cli_command(**kw) + self.cli_arguments(**kw)
+
+    @property
+    def subprocess_options(self):
+        opts = {}
+        for (key, val) in self.ProcessOptions.iteritems():
+            if type(val) in (str, unicode):
+                if val.lower() == "pipe":
+                    val = subprocess.PIPE
+            opts[key] = val
+        return opts
+
     def execute(self, **kw):
-        cmd = self.command(**kw)
-        self.proc = subprocess.Popen(cmd, **self.ProcessOptions)
+        cli = self.cli(**kw)
+        self.proc = subprocess.Popen(cli, **self.subprocess_options)
         return self.proc
     __call__ = execute
 

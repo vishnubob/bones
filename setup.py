@@ -9,7 +9,6 @@ sctk = {
     "author_email": "giles@polymerase.org",
     "keywords": ["biology", "bioinformatics", "genomics", "sequencing"],
     "packages": ["bones"],
-    "package_dir": {"bones": "src"},
     "install_requires": [
         "pysam", 
         "requests", 
