@@ -8,20 +8,45 @@ from . process import *
 
 __all__ = ["Index", "Align"]
 
-class Index(object):
+class Index(Process):
+    Command = "bwa"
+    Arguments = [
+        ProcessArgument(name="bwa_module", type=str, default="index", required=True, help="BWA module name"),
+        ProcessArgument(name="prefix", argument="-p", type=str, help="Prefix of database"),
+        ProcessArgument(name="algorithm", argument="-a", type=str, help="Algorithm for index construction"),
+        ProcessArgument(name="reference", required=True, type=str, help="Path to reference"),
+    ]
     IndexExtensionList = ["amb", "ann", "bwt", "pac", "sa"]
 
-    def __init__(self, reference=None, prefix=None):
-        if (reference == None and prefix == None):
-            raise ValueError, "You must provide a path to reference file or a BWA index prefix" 
-        self.reference = reference
-        if prefix == None:
-            (basedir, reffn) = os.path.split(os.path.abspath(self.reference))
-            (refstem, refext) = os.path.splitext(reffn)
-            prefix = os.path.join(basedir, refstem + "_bwa_index", refstem)
-        self.prefix = prefix
-        if not self.is_valid:
-            self.build_index()
+    def get_index_dir(self):
+        return getattr(self, "_index_dir", None)
+    def set_index_dir(self, path):
+        self._index_dir = path
+    index_dir = property(get_index_dir, set_index_dir)
+
+    def get_prefix(self):
+        if hasattr(self, "_prefix"):
+            return self._prefix
+        if hasattr(self, "_prefix_dir") and hasattr(self, "_reference"):
+            ref_fn = os.path.split(self._reference)[-1]
+            return os.path.join(self._prefix_dir, ref_fn)
+        if hasattr(self, "_reference"):
+            return self._reference
+        return None
+    def set_prefix(self, prefix):
+        self._prefix = prefix
+    prefix = property(get_prefix, set_prefix)
+
+    def get_reference(self):
+        if hasattr(self, "_reference"):
+            return self._reference
+        if hasattr(self, "_prefix"):
+            return self._prefix
+        return None
+    def set_reference(self, reference):
+        self._reference = reference
+    prefix = property(get_prefix, set_prefix)
+
 
     @property
     def is_valid(self):
@@ -33,21 +58,13 @@ class Index(object):
                 return False
         return True
 
-    def build_index(self):
-        # make sure the base directory for the prefix exists
-        basedir = os.path.split(self.prefix)[0]
-        if not os.path.isdir(basedir):
-            os.mkdir(basedir)
-        cmd = ["bwa", "index", "-p", self.prefix, self.reference]
-        proc = subprocess.Popen(cmd)
-        proc.wait()
-        if proc.returncode != 0:
-            msg = "The command '%s' did not exit cleanly (return code = %d)" % (str.join(' ', cmd), proc.returncode)
-            raise RuntimeError, msg
-
 class Align(Process):
     Command = "bwa"
+    ProcessOptions = {
+        "stdout": "pipe"
+    }
     Arguments = [
+        ProcessArgument(name="bwa_module", type=str, default="mem", required=True, help="BWA module name"),
         ProcessArgument(name="threads", argument="-t", type=int, default=1, help="Number of threads"),
         ProcessArgument(name="min_seed_len", argument="-k", type=int, default=19, help="Minimum seed length"),
         ProcessArgument(name="bandwidth", argument="-w", type=int, default=100, help="Gaps longer than bandwidth will not be found"),
@@ -69,38 +86,19 @@ class Align(Process):
         ProcessArgument(name="hard_clipping", argument="-H", type=bool, default=False, help="Use hard clipping in SAM file"),
         ProcessArgument(name="mark_short_splits", argument="-M", type=bool, default=False, help="Mark shorter split hits as secondary"),
         ProcessArgument(name="verbose", argument="-v", type=int, default=3, help="Control the verbose level of the output."),
-        ProcessArgument(name="index", position=0, type=str, required=True, help="Base index of reference"),
-        ProcessArgument(name="reads", position=1, type=str, required=True, help="Path to reads file"),
-        ProcessArgument(name="mates", position=2, type=str, help="Path to mate reads file"),
+        ProcessArgument(name="prefix", type=str, required=True, help="Base index of reference"),
+        ProcessArgument(name="reads", type=str, required=True, help="Path to reads file"),
+        ProcessArgument(name="mates", type=str, help="Path to mate reads file"),
     ]
 
-    def __init__(self, index, threads=-1):
-        self.index = index
-        self.threads = threads if threads >= 0 else multiprocessing.cpu_count()
+    def get_prefix(self):
+        thing = getattr(self, "_prefix", None)
+        if type(thing) in (str, unicode):
+            return thing
+        if isinstance(thing, Index):
+            return thing.prefix
+        return None
 
-    def cli_command(self, **kw):
-        return [self.command_path, "mem"]
-
-    def cli_arguments(self, **kw):
-        cli = super(Align, self).cli_arguments(**kw)
-        reads = [reads1] if reads2 == None else [reads1, reads2]
-        cli = cli + [self.index.prefix] + reads
-
-    def align(self, reads1, reads2=None, output=None):
-        args = args if args != None else dict()
-        if self.threads and "-t" not in args:
-            args["-t"] = self.threads
-        args = list(map(str, reduce(operator.add, args.items(), tuple())))
-        cmd = ["bwa", "mem"] + args + [self.index.prefix] + reads
-        if output == None:
-            output = common_filename(*reads)
-            if output == '':
-                output = "alignment.sam"
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        with open(output, 'wb') as fout:
-            fout.write(proc.stdout.read())
-        proc.wait()
-        if proc.returncode != 0:
-            msg = "The command '%s' did not exit cleanly (return code = %d)" % (str.join(' ', cmd), proc.returncode)
-            raise RuntimeError, msg
-        return output
+    def set_prefix(self, prefix):
+        self._prefix = prefix
+    prefix = property(get_prefix, set_prefix)

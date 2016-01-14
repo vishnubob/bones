@@ -39,7 +39,7 @@ class TestProcess(unittest.TestCase):
 
     def test_attribute_interface(self):
         cmd = GenericCommand()
-        self.assertEquals(cmd.arg1, 1)
+        self.assertEquals(cmd.arg1, None)
         cmd.arg1 = 2
         self.assertEquals(cmd.arg1, 2)
         cmd.arg1 = "3"
@@ -60,13 +60,9 @@ class TestProcess(unittest.TestCase):
     def test_pipe(self):
         cmd1 = EchoCommand(content="this is a test")
         cmd2 = WordCountCommand(char_count=True)
-        proc1 = cmd1()
-        proc2 = cmd2()
-        proc2.stdin.write(proc1.stdout.read())
-        proc2.stdin.close()
-        output = proc2.stdout.read()
-        proc1.wait()
-        proc2.wait()
+        pipe = Pipe(cmd1, cmd2)
+        (stdout_proc, stdin_proc) = pipe()
+        output = stdin_proc.stdout.read()
         self.assertEquals(output, "15\n")
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ import operator
 import subprocess
 from . utils import which
 
-__all__ = ["Process", "ProcessArgument"]
+__all__ = ["Process", "ProcessArgument", "Pipe"]
 
 class ProcessArgument(object):
     def __init__(self, name=None, argument=None, type=None, default=None, required=False, position=None, help=None):
@@ -34,15 +34,8 @@ class Process(object):
         command_path = which(command_path)
         self.command_path = command_path
         # make local copies
-        self._args = {}
         for (key, val) in args.iteritems():
             setattr(self, key, val)
-
-    def get_argument(self, name):
-        if name not in self._argmap:
-            raise KeyError, "unknown argument '%s'" % name
-        parg = self._argmap[name]
-        return self._args.get(name, parg.default)
 
     def set_argument(self, name, value):
         if name not in self._argmap:
@@ -51,11 +44,11 @@ class Process(object):
         if parg.type != None:
             # XXX: autocast?
             value = parg.type(value)
-        self._args[name] = value
+        super(Process, self).__setattr__(name, value)
 
     def __getattr__(self, key):
         if key in self._argmap:
-            return self.get_argument(key)
+            return None
         return super(Process, self).__getattr__(key)
 
     def __setattr__(self, key, val):
@@ -64,19 +57,17 @@ class Process(object):
         super(Process, self).__setattr__(key, val)
 
     def cli_arguments(self, **kw):
-        _args = self._args.copy()
-        _args.update(kw)
-        #
         cli = []
         for parg in self.Arguments:
-            if parg.name in _args:
+            value = kw.get(parg.name, getattr(self, parg.name, None))
+            if value != None:
                 if parg.argument == None:
-                    cli.append("%s" % _args[parg.name])
-                elif parg.type == bool and _args[parg.name]:
+                    cli.append("%s" % value)
+                elif parg.type == bool and value:
                     cli.append(parg.argument)
                 else:
                     cli.append(parg.argument)
-                    cli.append("%s" % _args[parg.name])
+                    cli.append("%s" % value)
             elif parg.required:
                 if parg.type == bool and parg.default:
                     cli.append(parg.argument)
@@ -93,19 +84,23 @@ class Process(object):
     def cli(self, **kw):
         return self.cli_command(**kw) + self.cli_arguments(**kw)
 
-    @property
-    def subprocess_options(self):
+    def subprocess_arguments(self, **kw):
+        config = self.ProcessOptions.copy()
+        config.update(kw)
         opts = {}
-        for (key, val) in self.ProcessOptions.iteritems():
+        for (key, val) in config.iteritems():
             if type(val) in (str, unicode):
                 if val.lower() == "pipe":
                     val = subprocess.PIPE
             opts[key] = val
         return opts
 
-    def execute(self, **kw):
-        cli = self.cli(**kw)
-        self.proc = subprocess.Popen(cli, **self.subprocess_options)
+    def execute(self, args=None, **kw):
+        args = args if args else {}
+        cli = self.cli(**args)
+        subprocess_args = self.subprocess_arguments(**kw)
+        print cli
+        self.proc = subprocess.Popen(cli, **subprocess_args)
         return self.proc
     __call__ = execute
 
@@ -127,3 +122,26 @@ class Process(object):
             return
         self.assert_return_code()
         return self.proc.returncode
+
+class Pipe(object):
+    def __init__(self, stdout=None, stdin=None):
+        self.stdout = stdout
+        self.stdin = stdin
+
+    def execute(self, stdin_args=None, stdout_args=None):
+        self.stdout_proc = self.stdout.execute(args=stdout_args, stdout=subprocess.PIPE)
+        self.stdin_proc = self.stdin.execute(args=stdin_args, stdin=self.stdout_proc.stdout)
+        return (self.stdout_proc, self.stdin_proc)
+    __call__ = execute
+
+    def wait(self):
+        self.stdout.wait()
+        self.stdin.wait()
+        return self.stdin_proc.returncode
+
+    def poll(self):
+        if self.stdin.poll() == None:
+            return
+        if self.stdout.poll() == None:
+            return
+        return self.stdin_proc.returncode
