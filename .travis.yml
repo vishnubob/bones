@@ -6,7 +6,7 @@ before_install:
     - uname -a
     - lsb_release -a
     - sudo apt-get -qq update
-    - sudo apt-get install build-essential python-dev
+    - sudo apt-get install build-essential python-dev samtools bwa
 install:
     - pip install coveralls
     - python setup.py install

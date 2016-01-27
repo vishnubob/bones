@@ -29,10 +29,10 @@ class Consensus(object):
             return True
 
     def process_pileup(self, pileup):
-        for pileup_column in samf.pileup():
+        for pileup_column in pileup:
             position = pileup_column.pos
             coverage = pileup_column.n
-            base_count = process_pileup_column(pileup_column, filter_callback)
+            base_count = self.process_pileup_column(pileup_column)
             yield (position, coverage, base_count)
 
     def call_pileup_column(self, position, coverage, base_count):

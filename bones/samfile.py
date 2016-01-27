@@ -7,15 +7,16 @@ import pysam
 
 from . utils import *
 
-__all__ = ["SamFile"]
+__all__ = ["Samfile"]
 
-class SamFile(object):
+class Samfile(object):
     def __init__(self, basename, reffn=None):
         self._cache = {}
         basename_parts = basename.split('.')
         if basename_parts[-1].lower() in ("sam", "bam"):
             basename = str.join('.', basename_parts[:-1])
         self.basename = basename
+        self.basedir = os.path.split(self.basename)[0]
         if not (os.path.exists(self.samfn) or os.path.exists(self.bamfn)):
             msg = "No such file: '%s' or '%s'" % (self.samfn, self.bamfn)
             raise IOError(errno.ENOENT, msg)
@@ -79,6 +80,8 @@ class SamFile(object):
         # is our index stale?
         if is_stale(self.bamfn, self.baifn):
             self.build_index()
+        # clear our cache
+        self._cache = {}
 
     def to_bam(self):
         msg = "Converting %s to BAM %s" % (self.samfn, self.bamfn)
@@ -92,7 +95,7 @@ class SamFile(object):
     def sort(self):
         msg = "Sorting %s" % self.bamfn
         print(msg)
-        tempfn_stem = temp_filename()
+        tempfn_stem = os.path.join(self.basedir, temp_filename())
         pysam.sort(self.bamfn, tempfn_stem)
         tempfn_glob = glob.glob(tempfn_stem + '*')
         assert len(tempfn_glob) == 1, "Unexpected number of temporary output files: %r" % tempfn_glob
@@ -103,7 +106,7 @@ class SamFile(object):
     def rmdup(self):
         msg = "Removing duplicates in %s" % self.bamfn
         print(msg)
-        tempfn_stem = temp_filename()
+        tempfn_stem = os.path.join(self.basedir, temp_filename())
         pysam.rmdup("-s", self.bamfn, tempfn_stem)
         tempfn_glob = glob.glob(tempfn_stem + '*')
         assert len(tempfn_glob) == 1, "Unexpected number of temporary output files: %r" % tempfn_glob
