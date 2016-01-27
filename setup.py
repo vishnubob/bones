@@ -12,6 +12,7 @@ sctk = {
     "install_requires": [
         "pysam", 
         "requests", 
+        "https://github.com/vishnubob/ssw/archive/master.zip",
     ],
     "version": "0.1",
 }
