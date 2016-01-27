@@ -7,7 +7,6 @@ before_install:
     - lsb_release -a
     - sudo apt-get -qq update
     - sudo apt-get install build-essential python-dev
-    - swig -version
 install:
     - pip install coveralls
     - python setup.py install
