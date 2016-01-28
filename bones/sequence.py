@@ -5,16 +5,14 @@ import math
 __all__ = ["Sequence", "ComplimentTable", "random_sequence"]
 
 def build_compliment_table():
-    cmap = (('g', 'c'), ('a', 't'))
+    cmap = ((ord('G'), ord('C')), (ord('A'), ord('T')))
     _ctable = [chr(idx) for idx in xrange(0xff + 1)]
+    case_delta = ord('a') - ord('A')
     for (base1, base2) in cmap:
-        for casef in (str.lower, str.upper):
-            base1 = casef(base1)
-            base2 = casef(base2)
-            base1_val = ord(base1)
-            base2_val = ord(base2)
-            _ctable[base1_val] = base2
-            _ctable[base2_val] = base1
+        _ctable[base1] = chr(base2)
+        _ctable[base2] = chr(base1)
+        _ctable[base1 + case_delta] = chr(base2 + case_delta)
+        _ctable[base2 + case_delta] = chr(base1 + case_delta)
     return str.join('', _ctable)
 ComplimentTable = build_compliment_table()
 

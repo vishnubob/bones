@@ -47,7 +47,6 @@ class Index(Process):
         self._reference = reference
     prefix = property(get_prefix, set_prefix)
 
-
     @property
     def is_valid(self):
         for ext in self.IndexExtensionList:
