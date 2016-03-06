@@ -1,6 +1,7 @@
 # XXX: transition to unicode
 import random
 import math
+import copy
 
 __all__ = ["Sequence", "ComplimentTable", "random_sequence"]
 
@@ -16,11 +17,103 @@ def build_compliment_table():
     return str.join('', _ctable)
 ComplimentTable = build_compliment_table()
 
+class SequenceInfo(dict):
+    Defaults = {
+        "name": "",
+        "strand": 1,
+    }
+
+    def __init__(self, info=None, **kw):
+        if info == None:
+            info = {}
+        if not isinstance(info, dict):
+            raise TypeError("info must be a dictionary, not %s" % type(info))
+        super(SequenceInfo, self).__init__(self.Defaults)
+        self.update(info)
+        self.update(kw)
+
+    def copy(self):
+        return self.__class__(self)
+
+    def update(self, info):
+        for (key, val) in info.items():
+            self[key] = val
+
+    def __getitem__(self, key):
+        if key == "features":
+            return self.features
+        return super(SequenceInfo, self).__getitem__(key)
+
+    def __setitem__(self, key, val):
+        if key == "features":
+            self.features = val
+            return
+        super(SequenceInfo, self).__setitem__(key, val)
+
+    def get_features(self):
+        return self.get("features", {})
+
+    def set_features(self, features):
+        if type(features) != dict:
+            raise TypeError("features must be a dictionary, not %s" % type(features))
+        self["features"] = {key: SequenceFeature(val) for (key, val) in features.items()}
+
+class SequenceFeature(dict):
+    Defaults = {
+        "name": "",
+        "strand": 1,
+        "region": (0, 0),
+    }
+
+    def __init__(self, feature, **kw):
+        if not isinstance(feature, dict):
+            raise TypeError("feature must be a dictionary")
+        super(SequenceFeature, self).__init__(self.Defaults)
+        self.update(feature)
+        self.update(kw)
+
+    def copy(self):
+        return self.__class__(self)
+
 class Sequence(str):
-    def __new__(cls, sequence, name='', **kw):
+    def __new__(cls, sequence, **kw):
         obj = super(Sequence, cls).__new__(cls, sequence)
-        obj.name = name
         return obj
+    
+    def __init__(self, *args, **kw):
+        self.info = kw
+
+    def get_info(self):
+        return self._info
+    
+    def set_info(self, info):
+        if info == None:
+            info = {}
+        if not isinstance(info, SequenceInfo):
+            info = SequenceInfo(info)
+        self._info = info
+    info = property(get_info, set_info)
+
+    def get_features(self):
+        return self.info.features
+
+    def set_features(self, features):
+        self.info.features = features
+    features = property(get_features, set_features)
+
+    def get_name(self):
+        return self.info.get("name", "")
+
+    def set_name(self, name):
+        self.info["name"] = name
+    name = property(get_name, set_name)
+
+    def get_strand(self):
+        return self.info.get("strand", 1)
+
+    def set_strand(self, strand):
+        self.info["strand"] = strand
+    strand = property(get_strand, set_strand)
 
     def __getitem__(self, idx):
         subseq = super(Sequence, self).__getitem__(idx)
@@ -35,10 +128,10 @@ class Sequence(str):
         return (self[x:x + sz] for x in xrange(len(self) - sz + 1))
 
     def copy(self, sequence=None, **kw):
-        ns = self.__dict__.copy()
-        ns.update(kw)
         sequence = sequence if sequence != None else str(self)
-        return self.__class__(sequence, **ns)
+        info = self.info.copy()
+        info.update(kw)
+        return self.__class__(sequence, **info)
 
     def gc_window(self, window_size=10):
         return (seq.gc_content for seq in self.window(window_size))
@@ -53,7 +146,8 @@ class Sequence(str):
 
     @property
     def reverse_compliment(self):
-        return self.reverse.compliment
+        seq = str(self)[::-1].translate(ComplimentTable)
+        return self.copy(seq, strand=-(self.strand))
     rc = revcomp = reverse_compliment
 
     @property

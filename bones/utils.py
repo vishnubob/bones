@@ -2,15 +2,22 @@ import os
 import sys
 import uuid
 import time
+import glob
 
 __all__ = ["is_stale", "common_filename", "touch", "temp_filename", "assert_status_code", "which"]
 
-def is_stale(source_fn, target_fn):
-    if not os.path.exists(target_fn):
-        return True
-    source_mtime = os.path.getmtime(source_fn)
-    target_mtime = os.path.getmtime(target_fn)
-    return source_mtime > target_mtime
+def is_stale(source_glob, target_glob):
+    no_content = True
+    for target_fn in glob.glob(target_glob):
+        for source_fn in glob.glob(source_glob):
+            no_content = False
+            if not os.path.exists(target_fn):
+                return True
+            source_mtime = os.path.getmtime(source_fn)
+            target_mtime = os.path.getmtime(target_fn)
+            if source_mtime > target_mtime:
+                return True
+    return no_content
 
 def common_filename(*filenames):
     idx = 0

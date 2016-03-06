@@ -57,12 +57,16 @@ class Process(object):
         super(Process, self).__setattr__(key, val)
 
     def cli_arguments(self, **kw):
+        # XXX: generalize, recursive
         cli = []
         for parg in self.Arguments:
             value = kw.get(parg.name, getattr(self, parg.name, None))
             if value != None:
                 if parg.argument == None:
-                    cli.append("%s" % value)
+                    if parg.type == list:
+                        cli.extend(map(str, value))
+                    else:
+                        cli.append("%s" % value)
                 elif parg.type == bool and value:
                     cli.append(parg.argument)
                 else:
@@ -95,14 +99,15 @@ class Process(object):
             opts[key] = val
         return opts
 
-    def execute(self, args=None, **kw):
+    def execute(self, wait=False, args=None, **kw):
         args = args if args else {}
         cli = self.cli(**args)
         subprocess_args = self.subprocess_arguments(**kw)
-        print cli
         self.proc = subprocess.Popen(cli, **subprocess_args)
+        if wait:
+            self.proc.wait()
         return self.proc
-    __call__ = execute
+    __call__ = run = execute
 
     def assert_return_code(self):
         if self.ReturnCode == None:

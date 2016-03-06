@@ -11,6 +11,8 @@ class TestSequence(unittest.TestCase):
         revcomp_seq = seq.rc
         self.assertEquals(answer, revcomp_seq)
         self.assertEquals(seq.name, revcomp_seq.name)
+        self.assertEquals(seq.strand, 1)
+        self.assertEquals(revcomp_seq.strand, -1)
 
     def test_window(self):
         testseq = "AGTGCGATGT"
