@@ -6,3 +6,4 @@ import utils
 import bwa
 import process
 import consensus
+import tasks

@@ -1,0 +1,9 @@
+version: '2'
+services:
+    bones-rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+            - "9090:15672"
+            - "10101:5672"
+    bones-tasks:
+        build: .

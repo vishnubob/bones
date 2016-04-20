@@ -8,12 +8,16 @@ sctk = {
     "author":"Giles Hall",
     "author_email": "giles@polymerase.org",
     "keywords": ["biology", "bioinformatics", "genomics", "sequencing"],
-    "packages": ["bones"],
+    "packages": ["bones", "bones.tasks"],
     "version": "0.1",
+    "scripts": [
+        "scripts/bones-worker.py"
+    ],
     "install_requires": [
         "pysam",
         "requests",
-        "ssw"
+        "ssw",
+        "celery"
     ],
     "dependency_links": [
         "git+git://github.com/vishnubob/ssw.git#egg=ssw-0.3.1",
