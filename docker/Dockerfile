@@ -40,3 +40,5 @@ RUN cd $SRC_DIR && \
 # cleanup
 RUN rm -rf $SRC_DIR
 
+#
+CMD ["bones-worker.py", "worker"]
