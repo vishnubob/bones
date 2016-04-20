@@ -1,3 +1,0 @@
-pysam
-requests
-git+git://github.com/vishnubob/ssw.git

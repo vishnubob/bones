@@ -10,6 +10,14 @@ sctk = {
     "keywords": ["biology", "bioinformatics", "genomics", "sequencing"],
     "packages": ["bones"],
     "version": "0.1",
+    "install_requires": [
+        "pysam",
+        "requests",
+        "ssw"
+    ],
+    "dependency_links": [
+        "git+git://github.com/vishnubob/ssw.git#egg=ssw-0.3.1",
+    ]
 }
 
 if __name__ == "__main__":
