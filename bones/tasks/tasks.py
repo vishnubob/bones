@@ -11,7 +11,7 @@ from bones.fastqc import FastQC
 from bones.samfile import Samfile
 import ssw
 
-default_celery_broker = "amqp://guest@bones-rabbitmq:10101"
+default_celery_broker = "amqp://guest@broker"
 amqp_url = os.getenv("CELERY_BROKER", default_celery_broker)
 
 app = Celery(

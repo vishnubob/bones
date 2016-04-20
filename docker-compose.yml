@@ -1,0 +1,10 @@
+broker:
+    image: rabbitmq:3-management
+    ports:
+        - "9090:15672"
+        - "10101:5672"
+tasks:
+    build: .
+    links:
+        - broker
+    command: python /bones/scripts/bones-worker.py worker

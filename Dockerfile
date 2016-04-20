@@ -8,13 +8,6 @@ RUN apt-get install -y zlib1g-dev unzip wget python-dev python-pip samtools libc
 ENV SRC_DIR="/tmp/src"
 RUN mkdir $SRC_DIR
 
-# Bones
-ENV BONES_VERSION="master"
-RUN git clone -b $BONES_VERSION https://github.com/vishnubob/bones.git $SRC_DIR/bones && \
-    cd $SRC_DIR/bones && \
-    python setup.py install && \
-    pip install celery
-
 # BWA
 ENV BWA_VERSION="v0.7.13"
 RUN git clone -b $BWA_VERSION https://github.com/lh3/bwa.git $SRC_DIR/bwa && \
@@ -40,5 +33,11 @@ RUN cd $SRC_DIR && \
 # cleanup
 RUN rm -rf $SRC_DIR
 
-#
-CMD ["bones-worker.py", "worker"]
+# Bones
+ENV BONES_VERSION="master"
+RUN pip install pysam celery requests && \
+    pip install https://github.com/vishnubob/ssw/archive/master.zip
+COPY / /bones
+
+USER nobody
+CMD ["/bones/scripts/bones-worker.py", "worker"]
