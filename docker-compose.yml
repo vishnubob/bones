@@ -8,3 +8,7 @@ tasks:
     links:
         - broker
     command: python /bones/scripts/bones-worker.py worker
+    volumes:
+        - ~/code/bones:/bones
+    environment:
+        - BONES_OUTPUT_DIR=/bones/output
