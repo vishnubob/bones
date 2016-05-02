@@ -3,8 +3,10 @@ import operator
 import subprocess
 import multiprocessing
 
-from . utils import *
-from . process import *
+from .. utils import *
+from .. process import *
+from .. task import *
+from .. package import *
 
 __all__ = ["Index", "Align"]
 
@@ -101,3 +103,56 @@ class Align(Process):
     def set_prefix(self, prefix):
         self._prefix = prefix
     prefix = property(get_prefix, set_prefix)
+
+class BWA_IndexTask(BoneTask):
+    TaskName = "bwa_index"
+    Directories = ["reads", "reference"]
+
+    def _init(self):
+        self.reference = symlink(self.reference, self.dir_reference)
+
+    def _run(self, *args, **kw):
+        cmdkw = {"reference": self.reference}
+        cmdkw.update(kw)
+        index = bwa.Index(**cmdkw)
+        index.run(wait=True)
+        self.index_prefix = index.prefix
+
+class BWA_AlignmentTask(BoneTask):
+    Directories = ["alignment"]
+    TaskName = "bwa_align"
+
+    def _init(self):
+        self.reads = [symlink(fn, self.dir_reads) for fn in self.reads]
+        self.fn_alignment = os.path.join(self.dir_alignment, "alignment.sam")
+
+    def _run(self, *args, **kw):
+        #if not is_stale(self.reference, self.fn_alignment):
+        #   return
+        cmdkw = {
+            "prefix": self.reference,
+            "reads": self.reads[0],
+        }
+        if len(self.reads) > 1:
+            cmdkw["mates"] = self.reads[1]
+        cmdkw.update(kw)
+        align = bwa.Align(**cmdkw)
+        with open(self.fn_alignment, 'w') as fh:
+            align.run(stdout=fh, wait=True)
+
+class PackageBWA(Package):
+    PackageName = "bwa"
+    Depends = {
+        "dpkg": ["git", "build-essential", "zlib1g-dev"],
+        "pip": []
+    }
+    Version = "v0.7.13"
+
+    def script(self):
+        script = [
+            "git clone -b ${PKG_VERSION} https://github.com/lh3/bwa.git ${PKG_SRCDIR}/bwa",
+            "cd ${PKG_SRCDIR}/bwa",
+            "make",
+            "cp bwa ${PKG_BINDIR}",
+        ]
+        return script

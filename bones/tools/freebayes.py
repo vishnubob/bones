@@ -1,9 +1,9 @@
 import os
 import operator
 import subprocess
-import multiprocessing
 
-from . utils import *
+from .. utils import *
+from .. process import *
 
 __all__ = ["FreeBayes"]
 

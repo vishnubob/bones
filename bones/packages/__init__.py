@@ -1,15 +1,15 @@
 def bootstrap():
     import sys
     import inspect
-    from .. task import BoneTask
+    from .. package import Package
     from .. tools import __tools__ as toolmap
     thismodule = sys.modules[__name__]
     ns = thismodule.__dict__
-    tasks = {}
+    packages = {}
     for (toolname, toolmod) in toolmap.items():
         for (name, cls) in toolmod.__dict__.items():
-            if inspect.isclass(cls) and issubclass(cls, BoneTask) and (cls.__name__ != "BoneTask"):
-                tasks[cls.TaskName] = cls
-    ns["__tasks__"] = tasks
+            if inspect.isclass(cls) and issubclass(cls, Package) and (cls.__name__ != "Package"):
+                packages[cls.PackageName] = cls
+    ns["__packages__"] = packages
     del ns["bootstrap"]
 bootstrap()

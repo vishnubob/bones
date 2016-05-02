@@ -4,7 +4,30 @@ import uuid
 import time
 import glob
 
-__all__ = ["is_stale", "common_filename", "touch", "temp_filename", "assert_status_code", "which"]
+__all__ = ["is_stale", "common_filename", "touch", "temp_filename", "assert_status_code", "which", "verify_link", "symlink"]
+
+def verify_link(source, target):
+    try:
+        return os.readlink(target) == source
+    except OSError:
+        pass
+    return False
+
+def symlink(source, directory):
+    if not source:
+        return None
+    source = os.path.abspath(source)
+    (path, filename) = os.path.split(source)
+    target = os.path.join(directory, filename)
+    if source == target:
+        return target
+    if not verify_link(source, target):
+        try:
+            os.symlink(source, target)
+        except Exception, err:
+            message = "Failed to symlink source '%s' to target '%s' (%s)" % (source, target, err)
+            raise RuntimeError(message)
+    return target
 
 def is_stale(source_glob, target_glob):
     no_content = True
