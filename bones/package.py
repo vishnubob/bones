@@ -72,7 +72,7 @@ class DockerScriptInstaller(PackageInstaller):
             pkg = pkgcls(**self.args)
             script += "# %s\n" % pkg.PackageName
             env = pkg.environment()
-            cmds = ["%s=%s" % kv for kv in env.items()] + pkg.script()
+            cmds = ["%s=%s" % kv for kv in env.items()] + pkg.preinstall_hook() + pkg.script() + pkg.postinstall_hook()
             cmds = "RUN " + str.join(" && \\\n    ", cmds) + '\n'
             script += cmds
         script = str.join('\n', self.DockerTemplate) % script
@@ -90,13 +90,21 @@ class Package(object):
         self.prefix = prefix
         self.bindir = os.path.join(self.prefix, "bin")
         self.libdir = os.path.join(self.prefix, "lib")
+        self.sharedir = os.path.join(self.prefix, "share")
         self.srcdir = srcdir
+
+    def preinstall_hook(self):
+        return ["mkdir ${PKG_SRCDIR}"]
+
+    def postinstall_hook(self):
+        return []
 
     def environment(self):
         env = {
             "PKG_SRCDIR": self.srcdir,
             "PKG_BINDIR": self.bindir,
             "PKG_LIBDIR": self.libdir,
+            "PKG_SHAREDIR": self.sharedir,
             "PKG_PREFIX": self.prefix,
             "PKG_VERSION": self.Version,
         }

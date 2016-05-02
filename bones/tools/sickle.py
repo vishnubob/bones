@@ -28,14 +28,14 @@ class Sickle(Process):
 class PackageSickle(Package):
     PackageName = "sickle"
     Depends = {
-        "dpkg": ["git", "build-essential"],
+        "dpkg": ["git", "build-essential", "zlib1g-dev"],
         "pip": []
     }
     Version ="v1.33"
 
     def script(self):
         script = [
-            "git clone -b ${PKG_VERSION} https://github.com/najoshi/sickle.git ${SRCDIR}/sickle"
+            "git clone -b ${PKG_VERSION} https://github.com/najoshi/sickle.git ${PKG_SRCDIR}/sickle",
             "cd ${PKG_SRCDIR}/sickle",
             "make",
             "cp sickle ${PKG_BINDIR}"
