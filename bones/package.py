@@ -2,22 +2,6 @@ import os
 import sys
 import inspect
 
-"""
-    apt-get update 
-    apt-get install -y \
-        build-essential \
-        git \
-        default-jre-headless \
-        zlib1g-dev \
-        unzip \
-        wget \
-        python-dev \
-        python-pip \
-        samtools \
-        libcurl4-openssl-dev
-    mkdir $SOURCE_DIR
-"""
-
 class PackageInstaller(object):
     def __init__(self, packages, **args):
         self.packages = packages

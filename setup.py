@@ -1,6 +1,20 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
+from pip.req import parse_requirements
+
+def populate_requirements(conf, reqfn=None):
+    reqfn = reqfn if reqfn != None else "requirements.txt" 
+    install_reqs = list(parse_requirements(reqfn, session=False))
+    _reqs = conf.get("install_requires", [])
+    _deps = conf.get("dependency_links", [])
+    _reqs.extend([str(ir.req) for ir in install_reqs])
+    _deps.extend([str(ir.link.url) for ir in install_reqs if ir.link])
+    if _reqs:
+        conf["install_requires"] = _reqs
+    if _deps:
+        conf["dependency_links"] = _deps
+    return conf
 
 sctk = {
     "name": "bones",
@@ -8,21 +22,14 @@ sctk = {
     "author":"Giles Hall",
     "author_email": "giles@polymerase.org",
     "keywords": ["biology", "bioinformatics", "genomics", "sequencing"],
-    "packages": ["bones", "bones.tasks"],
+    "packages": find_packages(),
     "version": "0.1",
     "scripts": [
-        "scripts/bones-worker.py"
+        "scripts/bones-worker.py",
     ],
-    "install_requires": [
-        "pysam",
-        "requests",
-        "ssw",
-        "celery"
-    ],
-    "dependency_links": [
-        "git+git://github.com/vishnubob/ssw.git#egg=ssw-0.3.1",
-    ]
 }
 
 if __name__ == "__main__":
-    setup(**sctk)
+    conf = sctk.copy()
+    conf = populate_requirements(conf)
+    setup(**conf)
