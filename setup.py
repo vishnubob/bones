@@ -9,7 +9,7 @@ def populate_requirements(conf, reqfn=None):
     _reqs = conf.get("install_requires", [])
     _deps = conf.get("dependency_links", [])
     _reqs.extend([str(ir.req) for ir in install_reqs])
-    _deps.extend([str(ir.link.url) for ir in install_reqs if ir.link])
+    _deps.extend([str(ir.link.url) for ir in install_reqs if hasattr(ir, "link") and ir.link])
     if _reqs:
         conf["install_requires"] = _reqs
     if _deps:
