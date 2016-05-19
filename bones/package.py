@@ -78,7 +78,7 @@ class Package(object):
         self.srcdir = srcdir
 
     def preinstall_hook(self):
-        return ["mkdir ${PKG_SRCDIR}"]
+        return ["if [ ! -d ${PKG_SRCDIR} ]; then mkdir ${PKG_SRCDIR}; fi"]
 
     def postinstall_hook(self):
         return []
@@ -96,20 +96,6 @@ class Package(object):
 
     def script(self):
         pass
-
-class BonesPackage(Package):
-    PackageName = "bones"
-    Depends = {
-        "dpkg": ["git", "build-essential"],
-        "pip": ["pysam", "celery", "requests"]
-    }
-    Version = "master"
-
-    def script(self):
-        script = [
-            "pip install https://github.com/vishnubob/ssw/archive/master.zip",
-        ]
-        return script
 
 def collect_packages():
     thismodule = sys.modules[__name__]

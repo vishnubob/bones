@@ -1,0 +1,4 @@
+celery
+pysam
+
+git+https://github.com/vishnubob/ssw.git#egg=ssw

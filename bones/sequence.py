@@ -185,3 +185,7 @@ def random_sequence(length, name=None, gc_median=0.5, gc_spread=0.1):
     seq = str.join('', seq)
     name = name if name != None else "random_sequence"
     return Sequence(seq, name=name)
+
+def revcomp(seq):
+    return Sequence(seq).rc
+rc = revcomp

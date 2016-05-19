@@ -7,3 +7,6 @@ import consensus
 import tools
 import tasks
 import packages
+
+# handy
+from sequence import revcomp, rc
