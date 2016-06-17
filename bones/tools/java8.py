@@ -1,6 +1,6 @@
 from .. package import Package
 
-class PackagesBones(Package):
+class PackagesJava(Package):
     PackageName = "java"
     Version = "v8"
 

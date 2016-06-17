@@ -4,11 +4,12 @@ broker:
         - "9090:15672"
         - "10101:5672"
 tasks:
-    build: .
+    image: bones:latest
     links:
         - broker
     command: python /bones/scripts/bones-worker.py worker
     volumes:
-        - ~/code/bones:/bones
+        - /ginkgo/bitome/users/giles/code/bones:/bones
+        - /ginkgo/bitome:/ginkgo/bitome
     environment:
-        - BONES_OUTPUT_DIR=/bones/output
+        - BONES_OUTPUT_DIR=/ginkgo/bitome/user/giles/bones

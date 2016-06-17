@@ -14,11 +14,7 @@ class PackageInstaller(object):
     def depends(self, key):
         deps = set()
         for pkg in self.packages:
-            for cls in ((pkg, ) + pkg.__mro__):
-                depends = cls.__dict__.get("Depends")
-                if depends == None:
-                    continue
-                deps.update(depends.get(key, []))
+            deps.update(pkg.get_depends(key))
         return list(deps)
 
     def dpkg_depends(self):
@@ -28,10 +24,30 @@ class PackageInstaller(object):
             cmd = "apt-get update && apt-get -y install %s" % str.join(' ', dpkg_list)
         return cmd
 
+    @property
+    def build_order(self):
+        from bones.packages import __packages__
+        deps = [__packages__.get(name) for name in self.depends("packages")]
+        packages = list(set(deps + self.packages))
+        packages.sort(reverse=True)
+        build_order = []
+        while packages:
+            # XXX: unresolved depends graphs can cause an
+            #       infinite loop.
+            pkg = packages.pop()
+            requires = pkg.get_depends("packages")
+            provided = [ppkg.PackageName for ppkg in build_order]
+            if requires and (set(requires) - set(provided)):
+                # package still has outstanding deps, continue
+                packages.insert(0, pkg)
+                continue
+            build_order.append(pkg)
+        return build_order
+
 class ShellScriptInstaller(PackageInstaller):
     def build(self):
         script = ''
-        for pkgcls in self.packages:
+        for pkgcls in self.build_order:
             pkg = pkgcls(**self.args)
             cmds = pkg.script()
             env = pkg.environment()
@@ -52,7 +68,10 @@ class DockerScriptInstaller(PackageInstaller):
         dpkg_cmd = self.dpkg_depends()
         if dpkg_cmd:
             script += "RUN " + dpkg_cmd + '\n'
-        for pkgcls in self.packages:
+        for pkgcls in self.build_order:
+            entrypoint = getattr(pkgcls, "Entrypoint", None)
+            if entrypoint:
+                script += "ENTRYPOINT %s\n" % entrypoint
             pkg = pkgcls(**self.args)
             script += "# %s\n" % pkg.PackageName
             env = pkg.environment()
@@ -63,10 +82,11 @@ class DockerScriptInstaller(PackageInstaller):
         return script
 
 class Package(object):
-    Name = "__package__"
+    PackageName = "__package__"
     Depends = {
         "dpkg": [],
-        "pip": []
+        "pip": [],
+        "packages": [],
     }
     Version = ""
 
@@ -76,6 +96,14 @@ class Package(object):
         self.libdir = os.path.join(self.prefix, "lib")
         self.sharedir = os.path.join(self.prefix, "share")
         self.srcdir = srcdir
+
+    @classmethod
+    def get_depends(cls, key):
+        deps = set()
+        for cls in ((cls, ) + cls.__mro__):
+            depends = cls.__dict__.get("Depends", {})
+            deps.update(depends.get(key, []))
+        return list(deps)
 
     def preinstall_hook(self):
         return ["if [ ! -d ${PKG_SRCDIR} ]; then mkdir ${PKG_SRCDIR}; fi"]

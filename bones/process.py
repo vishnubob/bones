@@ -17,7 +17,7 @@ class ProcessArgument(object):
 class ProcessMeta(type):
     def __new__(cls, name, parents, dct):
         argmap = dct.get("_argmap", {})
-        for parg in dct["Arguments"]:
+        for parg in dct.get("Arguments", []):
             argmap[parg.name] = parg
         dct["_argmap"] = argmap
         return super(ProcessMeta, cls).__new__(cls, name, parents, dct)

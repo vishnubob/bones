@@ -1,4 +1,5 @@
 celery
 pysam
+plumbum
 
 git+https://github.com/vishnubob/ssw.git#egg=ssw
