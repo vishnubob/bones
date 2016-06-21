@@ -1,4 +1,5 @@
 import os
+from .. package import Package
 from .. process import *
 
 class PicardCommand(dict):
@@ -36,7 +37,7 @@ class CollectInsertSizeMetrics(Process):
 class PackagePicard(Package):
     PackageName = "picard"
     Depends = {
-        "dpkg": ["wget", "unzip"]
+        "dpkg": ["wget", "unzip"],
         "packages": ["java"]
     }
     Version = "2.4.1"
@@ -49,7 +50,7 @@ class PackagePicard(Package):
             "rm picard-tools-${PKG_VERSION}.zip",
             "ln -s picard-tools-${PKG_VERSION} picard-tools",
             "echo '#!/usr/bin/env bash' > /usr/local/bin/picard",
-            "echo 'java -jar /usr/local/share/picard/picard.jar $@' >> /usr/local/bin/picard",
+            "echo 'java ${PICARD_JVM} -jar /usr/local/share/picard-tools/picard.jar $@' >> /usr/local/bin/picard",
             "chmod 755 /usr/local/bin/picard",
         ]
         return script
