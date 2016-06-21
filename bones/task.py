@@ -15,6 +15,12 @@ app = Celery(
     include=["bones", "bones.tasks"]
 )
 
+@app.task
+def plumrun(cmd, **kw):
+    print("plumrun cmd: %s" % repr(cmd))
+    print("plumrun kw: %s" % repr(kw))
+    cmd()
+
 # Optional configuration, see the application user guide.
 #app.conf.update(
     #CELERY_TASK_RESULT_EXPIRES=3600,

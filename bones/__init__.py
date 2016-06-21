@@ -10,3 +10,4 @@ import packages
 
 # handy
 from sequence import revcomp, rc
+from task import app

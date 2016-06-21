@@ -1,13 +1,22 @@
+db:
+    image: redis:latest
+    ports:
+        - "6379:6379"
+
 broker:
     image: rabbitmq:3-management
     ports:
-        - "9090:15672"
-        - "10101:5672"
+        - "4369:4369"
+        - "5671:5671"
+        - "5672:5672"
+        - "25672:25672"
+
 tasks:
-    image: bones:latest
+    image: bones
     links:
         - broker
-    command: python /bones/scripts/bones-worker.py worker
+        - db
+    entrypoint: /bones/entrypoint.sh
     volumes:
         - /ginkgo/bitome/users/giles/code/bones:/bones
         - /ginkgo/bitome:/ginkgo/bitome

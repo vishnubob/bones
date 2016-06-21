@@ -1,10 +1,57 @@
+from datetime import datetime
+import xml.etree.ElementTree as ET
 import os
 import re
 import glob
 
-__all__ = ["MiSeqSampleSheet", "MiSeqSample", "MiSeqDataDirectory"]
+__all__ = ["SampleSheet", "Sample", "DataDirectory", "RunInfo"]
 
-class MiSeqSampleSheet(object):
+class DataDirectory(object):
+    def __init__(self, root):
+        self.root = root
+        self.sample_sheet = SampleSheet(self.sample_sheet_path)
+        self.samples = [Sample(self, data) for data in self.sample_sheet.data]
+        self.runinfo = RunInfo(self.runinfo_path).copy()
+        # undetermined reads
+        stub = self.sample_sheet.sample_stub
+        stub["Sample_ID"] = "Undetermined"
+        self.undetermined = Sample(self, stub)
+
+    @property
+    def runinfo_path(self):
+        return os.path.join(self.root, "RunInfo.xml")
+
+    @property
+    def sample_sheet_path(self):
+        return os.path.join(self.root, "SampleSheet.csv")
+
+    @property
+    def basecalls_path(self):
+        return os.path.join(self.root, "Data/Intensities/BaseCalls")
+
+class RunInfo(dict):
+    def __init__(self, filepath):
+        self.doc = ET.parse(filepath)
+        self.parse()
+
+    def parse(self):
+        root = self.doc.getroot()
+        run = root.find("Run")
+        self["Run"] = {"Id": run.attrib["Id"], "Number": int(run.attrib["Number"])}
+        self["Flowcell"] = run.find("Flowcell").text
+        self["Instrument"] = run.find("Instrument").text
+        self["Date"] = datetime.strptime("160606", "%y%m%d")
+        self["Reads"] = []
+        for read in run.find("Reads").iter("Read"):
+            read = {
+                "NumCycles": int(read.attrib["NumCycles"]),
+                "Number": int(read.attrib["Number"]),
+                "IsIndexedRead": (read.attrib["IsIndexedRead"].upper() == 'Y'),
+            }
+            self["Reads"].append(read)
+        self["FlowcellLayout"] = {key: int(val) for (key, val) in run.find("FlowcellLayout").attrib.items()}
+
+class SampleSheet(object):
     re_header = re.compile("^\[(\w+)\]$")
 
     def __init__(self, filename):
@@ -73,7 +120,7 @@ class MiSeqSampleSheet(object):
     def sample_stub(self):
         return dict([(key, None) for key in self.data_header])
 
-class MiSeqSample(object):
+class Sample(object):
     def __init__(self, datadir, data):
         self.datadir = datadir
         self.data = data
@@ -86,22 +133,3 @@ class MiSeqSample(object):
     @property
     def reads(self):
         return tuple(self.files)
-
-class MiSeqDataDirectory(object):
-    def __init__(self, root):
-        self.root = root
-        self.sample_sheet = MiSeqSampleSheet(self.sample_sheet_fn)
-        self.samples = [MiSeqSample(self, data) for data in self.sample_sheet.data]
-        # undetermined reads
-        stub = self.sample_sheet.sample_stub
-        stub["Sample_ID"] = "Undetermined"
-        self.undetermined = MiSeqSample(self, stub)
-
-    @property
-    def sample_sheet_fn(self):
-        return os.path.join(self.root, "SampleSheet.csv")
-
-    @property
-    def basecalls_path(self):
-        return os.path.join(self.root, "Data/Intensities/BaseCalls")
-

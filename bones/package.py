@@ -17,11 +17,11 @@ class PackageInstaller(object):
             deps.update(pkg.get_depends(key))
         return list(deps)
 
-    def dpkg_depends(self):
-        dpkg_list = self.depends("dpkg")
-        cmd = None
+    def dpkg_depends(self, pkg):
+        dpkg_list = pkg.get_depends("dpkg")
+        cmd = []
         if dpkg_list:
-            cmd = "apt-get update && apt-get -y install %s" % str.join(' ', dpkg_list)
+            cmd = ["apt-get -y install %s" % str.join(' ', dpkg_list)]
         return cmd
 
     @property
@@ -60,22 +60,20 @@ class ShellScriptInstaller(PackageInstaller):
 class DockerScriptInstaller(PackageInstaller):
     DockerTemplate = [
         "FROM ubuntu:14.04",
+        "RUN apt-get update",
         "%s",
     ]
 
     def build(self):
         script = ''
-        dpkg_cmd = self.dpkg_depends()
-        if dpkg_cmd:
-            script += "RUN " + dpkg_cmd + '\n'
         for pkgcls in self.build_order:
+            pkg = pkgcls(**self.args)
+            script += "# %s\n" % pkg.PackageName
             entrypoint = getattr(pkgcls, "Entrypoint", None)
             if entrypoint:
                 script += "ENTRYPOINT %s\n" % entrypoint
-            pkg = pkgcls(**self.args)
-            script += "# %s\n" % pkg.PackageName
             env = pkg.environment()
-            cmds = ["%s=%s" % kv for kv in env.items()] + pkg.preinstall_hook() + pkg.script() + pkg.postinstall_hook()
+            cmds = ["%s=%s" % kv for kv in env.items()] + self.dpkg_depends(pkg) + pkg.preinstall_hook() + pkg.script() + pkg.postinstall_hook()
             cmds = "RUN " + str.join(" && \\\n    ", cmds) + '\n'
             script += cmds
         script = str.join('\n', self.DockerTemplate) % script

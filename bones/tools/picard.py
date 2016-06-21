@@ -32,3 +32,24 @@ class CollectInsertSizeMetrics(Process):
         ProcessArgument(name="gzip-output", argument="-g", type=bool, help="Output gzipped files"),
         ProcessArgument(name="truncate-n", argument="-n", type=int, help="Truncate the first N bases of every read"),
     ]
+
+class PackagePicard(Package):
+    PackageName = "picard"
+    Depends = {
+        "dpkg": ["wget", "unzip"]
+        "packages": ["java"]
+    }
+    Version = "2.4.1"
+
+    def script(self):
+        script = [
+            "cd /usr/local/share",
+            "wget https://github.com/broadinstitute/picard/releases/download/${PKG_VERSION}/picard-tools-${PKG_VERSION}.zip",
+            "unzip picard-tools-${PKG_VERSION}.zip",
+            "rm picard-tools-${PKG_VERSION}.zip",
+            "ln -s picard-tools-${PKG_VERSION} picard-tools",
+            "echo '#!/usr/bin/env bash' > /usr/local/bin/picard",
+            "echo 'java -jar /usr/local/share/picard/picard.jar $@' >> /usr/local/bin/picard",
+            "chmod 755 /usr/local/bin/picard",
+        ]
+        return script

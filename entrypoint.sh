@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
 
-celery worker -A bones.app --loglevel=DEBUG
+cd /bones
+#sudo -u nobody celery worker -A bones --loglevel=DEBUG
+export C_FORCE_ROOT="true"
+export CPU_COUNT=$(grep -c ^processor /proc/cpuinfo)
+celery worker -A bones --loglevel=DEBUG

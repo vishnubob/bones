@@ -41,7 +41,7 @@ class PackageFastQC(Package):
     PackageName = "fastqc"
     Depends = {
         "dpkg": ["git", "build-essential", "wget", "unzip"],
-        "pip": []
+        "packages": ["java"]
     }
     Version = "v0.11.5"
 
