@@ -11,7 +11,7 @@ class DataDirectory(object):
         self.root = root
         self.sample_sheet = SampleSheet(self.sample_sheet_path)
         self.samples = [Sample(self, data) for data in self.sample_sheet.data]
-        self.runinfo = RunInfo(self.runinfo_path).copy()
+        self.runinfo = RunInfo(self.runinfo_path)
         # undetermined reads
         stub = self.sample_sheet.sample_stub
         stub["Sample_ID"] = "Undetermined"
@@ -40,7 +40,7 @@ class RunInfo(dict):
         self["Run"] = {"Id": run.attrib["Id"], "Number": int(run.attrib["Number"])}
         self["Flowcell"] = run.find("Flowcell").text
         self["Instrument"] = run.find("Instrument").text
-        self["Date"] = datetime.strptime("160606", "%y%m%d")
+        self["Date"] = datetime.strptime(run.find("Date").text, "%y%m%d")
         self["Reads"] = []
         for read in run.find("Reads").iter("Read"):
             read = {
@@ -51,8 +51,13 @@ class RunInfo(dict):
             self["Reads"].append(read)
         self["FlowcellLayout"] = {key: int(val) for (key, val) in run.find("FlowcellLayout").attrib.items()}
 
+    @property
+    def read_structure(self):
+        chapter = lambda read: "%s%s" % (read["NumCycles"], 'B' if read["IsIndexedRead"] else 'T')
+        return str.join('', [chapter(read) for read in self["Reads"]])
+
 class SampleSheet(object):
-    re_header = re.compile("^\[(\w+)\]$")
+    re_header = re.compile("^\[(\w+)\].*")
 
     def __init__(self, filename):
         self.filename = filename
@@ -84,7 +89,7 @@ class SampleSheet(object):
                 func(line)
 
     def _parse_keyval(self, line):
-        keyval = line.split(',')
+        keyval = line.split(',')[:2]
         assert len(keyval) in (1, 2), "Expected one or two values, got %d (%s)" % (len(keyval), line)
         if len(keyval) == 1:
             keyval.append(None)
@@ -96,7 +101,8 @@ class SampleSheet(object):
         self.header[key] = val
 
     def parse_reads(self, line):
-        read_length = int(line)
+        value = line.split(',')[0]
+        read_length = int(value)
         self.reads = self.reads + (read_length, )
 
     def parse_settings(self, line):

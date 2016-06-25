@@ -54,3 +54,83 @@ class PackagePicard(Package):
             "chmod 755 /usr/local/bin/picard",
         ]
         return script
+
+def build_barcode_file(dd):
+    header = ["barcode_sequence_1", "barcode_sequence_2", "barcode_name", "library_name"]
+    content = str.join('\t', header) + '\n'
+    for sample in dd.sample_sheet.data:
+        row = [sample["index"], sample["index2"], sample["Sample_ID"], dd.runinfo["Run"]["Id"]]
+        content += str.join('\t', row) + '\n'
+    return content
+
+def build_multiplex_file(dd, outdir=None, lane=1):
+    # Header
+    header = ["OUTPUT_PREFIX", "BARCODE_1", "BARCODE_2"]
+    content = str.join('\t', header) + '\n'
+    # Undetermined
+    prefix = "Undetermined_S0_L%03d" % lane
+    if outdir:
+        prefix = os.path.join(outdir, prefix)
+    row = [prefix, "N", "N"]
+    content += str.join('\t', row) + '\n'
+    # Samples
+    for (idx, sample) in enumerate(dd.sample_sheet.data):
+        prefix = "%s_S%d_L%03d_R" % (sample["Sample_ID"], idx + 1, lane)
+        if outdir:
+            prefix = os.path.join(outdir, prefix)
+        row = [prefix, sample["index"], sample["index2"]]
+        content += str.join('\t', row) + '\n'
+    return content
+
+#path = "/home/giles/data/160602_M04168_0018_000000000-AU0H8/"
+#path = "/home/giles/data/151106_M04168_0003_000000000-AHK4J"
+"""
+dd = DataDirectory(path)
+outdir = "/tmp/barcodes"
+if not os.path.exists(outdir):
+    os.mkdir(outdir)
+
+barcodes_txt = "/tmp/barcodes/barcodes.txt"
+metrics_txt = "/tmp/barcodes/metrics.txt"
+multiplex_txt = "/tmp/barcodes/multiplex.txt"
+
+with open(barcodes_txt, 'w') as fh:
+    fh.write(build_barcode_file(dd))
+
+with open(multiplex_txt, 'w') as fh:
+    fh.write(build_multiplex_file(dd, outdir=outdir))
+
+arguments = [
+    "ExtractIlluminaBarcodes",
+    "BASECALLS_DIR=%s" % dd.basecalls_path,
+    "LANE=1",
+    "RS=%s" % build_read_structure(dd),
+    "BARCODE_FILE=%s" % barcodes_txt,
+    "METRICS_FILE=%s" % metrics_txt,
+    "NUM_PROCESSORS=0", 
+    "OUTPUT_DIR=%s" % outdir,
+]
+
+cmd = plumbum.cmd.picard[arguments]
+print cmd
+print(cmd())
+
+arguments = [
+    "IlluminaBasecallsToFastq",
+    "BASECALLS_DIR=%s" % dd.basecalls_path,
+    "LANE=1",
+    "RS=%s" % build_read_structure(dd),
+    "BARCODES_DIR=%s" % outdir,
+    "MULTIPLEX_PARAMS=%s" % multiplex_txt,
+    "NUM_PROCESSORS=0",
+    "MACHINE_NAME=%s" % dd.runinfo["Instrument"],
+    "FLOWCELL_BARCODE=%s" % dd.runinfo["Flowcell"],
+    "RUN_BARCODE=%s" % dd.runinfo["Run"]["Number"],
+    "MAX_READS_IN_RAM_PER_TILE=100000",
+]
+
+cmd = plumbum.cmd.picard[arguments]
+cmd = cmd.with_env(JAVA_TOOL_OPTIONS="-Xmx8G")
+print cmd
+print(cmd())
+"""

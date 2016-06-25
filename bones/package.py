@@ -29,7 +29,7 @@ class PackageInstaller(object):
         from bones.packages import __packages__
         deps = [__packages__.get(name) for name in self.depends("packages")]
         packages = list(set(deps + self.packages))
-        packages.sort(reverse=True)
+        packages.sort(reverse=True, key=lambda pkg: pkg.PackageName)
         build_order = []
         while packages:
             # XXX: unresolved depends graphs can cause an
@@ -66,6 +66,7 @@ class DockerScriptInstaller(PackageInstaller):
 
     def build(self):
         script = ''
+        #print [pkg.PackageName for pkg in self.build_order]
         for pkgcls in self.build_order:
             pkg = pkgcls(**self.args)
             script += "# %s\n" % pkg.PackageName
@@ -74,7 +75,7 @@ class DockerScriptInstaller(PackageInstaller):
                 script += "ENTRYPOINT %s\n" % entrypoint
             env = pkg.environment()
             cmds = ["%s=%s" % kv for kv in env.items()] + self.dpkg_depends(pkg) + pkg.preinstall_hook() + pkg.script() + pkg.postinstall_hook()
-            cmds = "RUN " + str.join(" && \\\n    ", cmds) + '\n'
+            cmds = "RUN " + str.join(" && \\\n", map(str.strip, cmds)) + '\n'
             script += cmds
         script = str.join('\n', self.DockerTemplate) % script
         return script

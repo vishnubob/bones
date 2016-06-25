@@ -21,7 +21,7 @@ class Samfile(object):
             msg = "No such file: '%s' or '%s'" % (self.samfn, self.bamfn)
             raise IOError(errno.ENOENT, msg)
         self.reffn = reffn
-        self.prepare()
+        #self.prepare()
 
     @property
     def samfn(self):
@@ -96,6 +96,7 @@ class Samfile(object):
         msg = "Sorting %s" % self.bamfn
         print(msg)
         tempfn_stem = os.path.join(self.basedir, temp_filename())
+        print self.bamfn, tempfn_stem
         pysam.sort(self.bamfn, tempfn_stem)
         tempfn_glob = glob.glob(tempfn_stem + '*')
         assert len(tempfn_glob) == 1, "Unexpected number of temporary output files: %r" % tempfn_glob

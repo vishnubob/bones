@@ -3,6 +3,7 @@ import sys
 import collections
 import operator
 import sequence
+from . samfile import Samfile
 
 class Consensus(object):
     def process_pileup_column(self, pileup_column):
@@ -41,6 +42,9 @@ class Consensus(object):
         #info = str.join(', ', map(str, ["%.06f%%" % unique, pos, cov, base_count, call_base(base_count)])) + '\n'
         #sys.stderr.write(info)
         hist = base_count.items()
+        if len(hist) == 0:
+            # XXX: is this right?
+            return ''
         hist.sort(key=operator.itemgetter(1))
         winner = hist[-1][0]
         if winner == "del":
@@ -57,7 +61,10 @@ class Consensus(object):
         return seq
 
     def call_samfile(self, samf):
+        if type(samf) in (str, unicode):
+            samf = Samfile(samf)
         for reference in samf.references:
             pileup = samf.pileup(reference=reference)
             seq = self.call_pileup(pileup)
             yield sequence.Sequence(seq, name=reference)
+
