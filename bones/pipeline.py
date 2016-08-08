@@ -1,4 +1,5 @@
 import plumbum
+import shutil
 from . import utils
 from . import consensus
 import os
@@ -94,6 +95,8 @@ class Pipeline(list, Bindable):
         self.unbind_context()
 
 class SequencingPipeline(Pipeline):
+    # XXX: r1/r2 for pooled runs
+
     DefaultContext = {
         "runid": None,
         "reference": None,
@@ -107,6 +110,7 @@ class SequencingPipeline(Pipeline):
         "dir_reads": "%(dir_output)s/reads",
         "dir_logs": "%(dir_output)s/logs",
         "dir_reports": "%(dir_output)s/reports",
+        "dir_assembly": "%(dir_output)s/assembly",
         # files
         "fn_reference": "%(dir_reference)s/reference.fa",
         "fn_alignment": "%(dir_alignment)s/alignment.bam",
@@ -145,7 +149,7 @@ class SequencingPipeline(Pipeline):
                 self.fn_reads.append(target)
             else:
                 self.fn_reads.append(read)
-        if not self.reference.startswith(self.dir_reference):
+        if self.reference and not self.reference.startswith(self.dir_reference):
             if os.path.exists(self.fn_reference):
                 os.unlink(self.fn_reference)
             os.symlink(self.reference, self.fn_reference)
@@ -221,6 +225,25 @@ class BWA_Index(PipelineCommand):
     def args(self):
         return ["index"] + self.extra + [self.fn_reference]
 
+class Megahit(PipelineCommand):
+    Name = "megahit"
+    Command = "megahit"
+
+    def init(self):
+        # XXX: i'm just making this up right now
+        self.preset = self.context.get("megahit_preset", "single-cell")
+
+    def args(self):
+        if len(self.fn_reads) == 2:
+            (read_1, read_2) = self.fn_reads
+        else:
+            msg = "Megahit pipeline command only supports a single pair of paired-end reads currently"
+            raise RuntimeError(msg)
+        outdir = os.path.join(self.dir_assembly, "megahit")
+        if os.path.exists(outdir):
+            shutil.rmtree(outdir)
+        return ["--presets", self.preset, "-1", read_1, "-2", read_2, "-o", outdir]
+
 class BWA_Align(PipelineCommand):
     Name = "bwa_align"
     Command = "bwa"
@@ -253,30 +276,36 @@ class Consensus(PipelineStage):
     def _run(self):
         self.fn_results_json = os.path.join(self.dir_reports, "consensus_results.json")
         self.fn_results_txt = os.path.join(self.dir_reports, "consensus_results.txt")
-        self.fn_consensus = os.path.join(self.dir_reports, "consensus.fa")
-        self.build_consensus()
-        self.compare_consensus()
+        self.fn_consensus = os.path.join(self.dir_consensus, "consensus.fa")
+        self.references = FastA.load(self.fn_reference)
         self.write_report()
 
-    def build_consensus(self):
-        cc = consensus.Consensus()
+    def call_consensus(self):
+        self.cc = consensus.Consensus()
         samf = pysam.AlignmentFile(self.fn_alignment, "rb")
-        sequences = cc.call_samfile(samf)
-        fa = FastA(sequences)
+        seqs = []
+        for sequence in self.cc.call_samfile(samf):
+            yield (sequence, self.cc)
+            seqs.append(sequence)
+        fa = FastA(seqs)
         fa.save(self.fn_consensus)
 
+    def execute_alignment(self, query):
+        row = []
+        self.dna_alphabet = "AGTCNRYSWKMBDHV"
+        matrix = ssw.DNA_ScoreMatrix(alphabet=self.dna_alphabet)
+        aligner = ssw.Aligner(matrix=matrix)
+        for reference in self.references:
+            alignment = aligner.align(query, reference)
+            row.append(alignment)
+        row.sort(cmp=lambda x, y: cmp(x.score, y.score), reverse=True)
+        winner = row[0]
+        return (winner.reference, winner)
+
     def compare_consensus(self):
-        refseqs = FastA.load(self.fn_reference)
-        conseqs = FastA.load(self.fn_consensus)
-        aligner = ssw.Aligner()
-        for reference in refseqs:
-            row = []
-            for query in conseqs:
-                alignment = aligner.align(query, reference)
-                row.append(alignment)
-            row.sort(cmp=lambda x, y: cmp(x.score, y.score), reverse=True)
-            winner = row[0]
-            yield (reference, winner)
+        for (consensus_sequence, consensus_caller) in self.call_consensus():
+            (reference, alignment) = self.execute_alignment(consensus_sequence)
+            yield (reference, alignment, consensus_caller)
 
     def build_report(self):
         refs = FastA.load(self.fn_reference)
@@ -286,17 +315,18 @@ class Consensus(PipelineStage):
         }
 
         global_verified_flag = True
-        for (reference, alignment) in self.compare_consensus():
+        for (reference, alignment, consensus_caller) in self.compare_consensus():
             verified_flag = alignment.match_count == len(reference)
             global_verified_flag &= verified_flag
             alstat = {
                 "name": reference.name,
-                "verified": str(verified_flag),
+                "verified": verified_flag,
                 "cigar": alignment.cigar,
                 "alignment": alignment.alignment_report(),
             }
+            alstat.update(consensus_caller.coverage)
             report["references"].append(alstat)
-        report["verified"] = str(global_verified_flag)
+        report["verified"] = global_verified_flag
         return report
     
     def build_report_txt(self, report):

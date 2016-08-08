@@ -6,6 +6,9 @@ import sequence
 from . samfile import Samfile
 
 class Consensus(object):
+    def __init__(self, read_coverage_threshold=10):
+        self.read_coverage_threshold = read_coverage_threshold
+
     def process_pileup_column(self, pileup_column):
         base_count = collections.defaultdict(int)
         for pileup_read in pileup_column.pileups:
@@ -31,9 +34,15 @@ class Consensus(object):
 
     def process_pileup(self, pileup):
         for pileup_column in pileup:
+            base_count = self.process_pileup_column(pileup_column)
             position = pileup_column.pos
             coverage = pileup_column.n
-            base_count = self.process_pileup_column(pileup_column)
+            if self.coverage["max_coverage"] == None:
+                self.coverage["max_coverage"] = self.coverage["min_coverage"] = coverage
+            self.coverage["max_coverage"] = max(self.coverage["max_coverage"], coverage)
+            self.coverage["min_coverage"] = min(self.coverage["min_coverage"], coverage)
+            self.coverage["avg_coverage"] += coverage
+            self.coverage["column_count"] += 1
             yield (position, coverage, base_count)
 
     def call_pileup_column(self, position, coverage, base_count):
@@ -44,19 +53,22 @@ class Consensus(object):
         hist = base_count.items()
         if len(hist) == 0:
             # XXX: is this right?
-            return ''
+            return ('', "NC")
+        if coverage < self.read_coverage_threshold:
+            return ('', "LC")
         hist.sort(key=operator.itemgetter(1))
         winner = hist[-1][0]
         if winner == "del":
-            return ''
+            return ('', "DL")
         if winner == "refskip":
-            return ''
-        return winner
+            return ('', "RS")
+        return (winner, "CL")
 
     def call_pileup(self, pileup):
         seq = ''
         for pileup_column in self.process_pileup(pileup):
-            pileup_column_call = self.call_pileup_column(*pileup_column)
+            (pileup_column_call, call_type) = self.call_pileup_column(*pileup_column)
+            self.call_type_hist[call_type] += 1
             seq += pileup_column_call
         return seq
 
@@ -64,7 +76,13 @@ class Consensus(object):
         if type(samf) in (str, unicode):
             samf = Samfile(samf)
         for reference in samf.references:
+            # stats
+            self.coverage = {"max_coverage": None, "min_coverage": None, "avg_coverage": 0, "column_count": 0}
+            self.call_type_hist = collections.defaultdict(int)
+            #
             pileup = samf.pileup(reference=reference)
             seq = self.call_pileup(pileup)
-            yield sequence.Sequence(seq, name=reference)
-
+            name = "%s_consensus" % reference
+            if self.coverage["column_count"]:
+                self.coverage["avg_coverage"] = self.coverage["avg_coverage"] / float(self.coverage["column_count"])
+            yield sequence.Sequence(seq, name=name)

@@ -110,8 +110,25 @@ class SampleSheet(object):
         assert key not in self.settings, "Found duplicate key '%s' in header" % key
         self.settings[key] = val
 
+    def parse_line(self, line, sep=','):
+        quote_flag = False
+        row = []
+        token = ''
+        for ch in line:
+            if ch in ("'", "\""):
+                quote_flag = not quote_flag
+            elif ch == sep and not quote_flag:
+                if token:
+                    row.append(token)
+                    token = ''
+            else:
+                token += ch
+        if token:
+            row.append(token)
+        return row
+
     def parse_data(self, line):
-        row = line.split(',')
+        row = self.parse_line(line)
         if not self.data_header:
             self.data_header = row
         else:
