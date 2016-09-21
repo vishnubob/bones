@@ -8,7 +8,6 @@ import consensus
 import tools
 import tasks
 import packages
-import aws
 import illumina
 
 # handy
