@@ -1,4 +1,6 @@
+boto
 celery
+flywheel
 pysam
 plumbum
 
