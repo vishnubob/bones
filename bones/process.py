@@ -39,7 +39,7 @@ class Process(object):
 
     def set_argument(self, name, value):
         if name not in self._argmap:
-            raise KeyError, "unknown argument '%s'" % name
+            raise KeyError("unknown argument '%s'" % name)
         parg = self._argmap[name]
         if parg.type != None:
             # XXX: autocast?
@@ -115,7 +115,7 @@ class Process(object):
         if self.proc.returncode == None:
             return
         if self.proc.returncode != self.ReturnCode:
-            raise RuntimeError, "The command '%s' did not return the expected return code (%s instead of %s)" % (self.command_path, self.proc.returncode, self.ReturnCode)
+            raise RuntimeErrori("The command '%s' did not return the expected return code (%s instead of %s)" % (self.command_path, self.proc.returncode, self.ReturnCode))
 
     def wait(self):
         self.proc.wait()

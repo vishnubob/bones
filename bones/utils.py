@@ -24,7 +24,7 @@ def symlink(source, directory):
     if not verify_link(source, target):
         try:
             os.symlink(source, target)
-        except Exception, err:
+        except Exception as err:
             message = "Failed to symlink source '%s' to target '%s' (%s)" % (source, target, err)
             raise RuntimeError(message)
     return target
@@ -76,11 +76,11 @@ def assert_status_code(resp, expected_status_code=200, msg=''):
         return
     if msg == None:
         msg = "%s request to '%s' did not return the expected status code (%d instead of %d)" % (resp.request.method, resp.request.url, resp.status_code, expected_status_code)
-    raise RuntimeError, msg
+    raise RuntimeError(msg)
 
 def which(program):
     if not program:
-        raise ValueError, "program cannot be a null string"
+        raise ValueError("program cannot be a null string")
     def is_qualified_exe(fpath):
         return len(os.path.split(fpath)[0]) and os.path.isfile(fpath) and os.access(fpath, os.X_OK)
     if is_qualified_exe(program):

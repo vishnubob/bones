@@ -2,7 +2,7 @@
 import re
 import json
 from . sequence import Sequence
-from cStringIO import StringIO
+#from cStringIO import StringIO
 
 __all__ = ["FastSequenceList", "FastA"]
 
@@ -11,6 +11,35 @@ class ParseError(Exception):
 
 class FastSequenceList(list):
     pass
+
+def load_fastq(fqfn):
+    (Header, Seperator) = (0, 1)
+    next_token = Header
+
+    with open(fqfn) as fh:
+        seq = hdr = qty = ''
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            if next_token == Header:
+                if seq and len(qty) < len(seq):
+                    qty += line
+                elif line[0] == '@':
+                    if hdr:
+                        assert len(qty) == len(seq)
+                        yield Sequence(seq, name=hdr)
+                        seq = hdr = qty = ''
+                    hdr = line[1:]
+                    next_token = Seperator
+            elif next_token == Seperator:
+                if line == '+':
+                    next_token = Header
+                else:
+                    seq += line
+        if hdr:
+            assert len(qty) == len(seq)
+            yield Sequence(seq, name=hdr)
 
 class FastA(FastSequenceList):
     re_infoname = re.compile("^>\s*(?P<name>[^{]*?)\s*(?P<info>{.+})\s*$")

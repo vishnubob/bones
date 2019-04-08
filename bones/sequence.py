@@ -7,7 +7,7 @@ __all__ = ["Sequence", "ComplimentTable", "random_sequence"]
 
 def build_compliment_table():
     cmap = ((ord('G'), ord('C')), (ord('A'), ord('T')))
-    _ctable = [chr(idx) for idx in xrange(0xff + 1)]
+    _ctable = [chr(idx) for idx in range(0xff + 1)]
     case_delta = ord('a') - ord('A')
     for (base1, base2) in cmap:
         _ctable[base1] = chr(base2)

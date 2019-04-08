@@ -2,7 +2,7 @@ import pysam
 import sys
 import collections
 import operator
-import sequence
+from . import sequence
 from . samfile import Samfile
 
 class Consensus(object):
